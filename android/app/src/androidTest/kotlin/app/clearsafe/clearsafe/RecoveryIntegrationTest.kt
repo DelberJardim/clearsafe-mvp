@@ -51,11 +51,19 @@ class RecoveryIntegrationTest {
         val mime=if(video) "video/mp4" else "image/jpeg"
         val folder=if(video) "Movies" else "Pictures"
         val collection=Uri.parse("content://media/external/$table/media")
-        shell("content insert --uri $collection --bind _display_name:s:$name --bind mime_type:s:$mime --bind relative_path:s:$folder/ClearSafeTests/")
-        val rowId=resolver.query(collection,arrayOf(MediaStore.MediaColumns._ID),
-            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",arrayOf(name),null)!!.use {c ->
-                check(c.moveToFirst()) { "Shell fixture not inserted" };c.getLong(0)
-            }
+        val insertion=shell("content insert --uri $collection --bind _display_name:s:$name --bind mime_type:s:$mime --bind relative_path:s:$folder/ClearSafeTests/")
+        // A freshly booted provider may publish shell-owned rows asynchronously.
+        // Wait for this unique fixture, without retrying insertion or weakening permissions.
+        var rowId:Long?=null
+        for(i in 0..80) {
+            rowId=resolver.query(collection,arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",arrayOf(name),null)?.use {c ->
+                    if(c.moveToFirst()) c.getLong(0) else null
+                }
+            if(rowId!=null) break
+            android.os.SystemClock.sleep(250)
+        }
+        check(rowId!=null) { "Shell fixture not visible after 20s: $insertion" }
         val image="$collection/$rowId"
         val streams=instrumentation.uiAutomation.executeShellCommandRw("content write --uri $image")
         ParcelFileDescriptor.AutoCloseOutputStream(streams[1]).use {it.write(data)}
