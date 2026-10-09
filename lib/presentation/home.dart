@@ -188,6 +188,7 @@ class _HomeState extends State<Home> {
           entries: entries,
           demo: demo,
           requireKeeper: keeper,
+          advanced: advanced,
           digest: digest,
           explanation: explanation,
         ),
@@ -223,7 +224,8 @@ class _HomeState extends State<Home> {
             final changed = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
-                builder: (_) => SimilarPage(photos: list, demo: demo),
+                builder: (_) =>
+                    SimilarPage(photos: list, demo: demo, advanced: advanced),
               ),
             );
             if (changed == true && mounted) {

@@ -35,7 +35,7 @@ class RecoveryIntegrationTest {
     private class Reply:MethodChannel.Result {
         val latch=CountDownLatch(1); var value:Any?=null;var error:String?=null
         override fun success(result:Any?) {value=result;latch.countDown()}
-        override fun error(code:String,message:String?,details:Any?) {error="$code: $message";latch.countDown()}
+        override fun error(code:String,message:String?,details:Any?) {error="$code: $message ($details)";latch.countDown()}
         override fun notImplemented() {error="notImplemented";latch.countDown()}
         fun await() {assertTrue("Timed out waiting for native result",latch.await(45,TimeUnit.SECONDS))}
     }
@@ -82,9 +82,14 @@ class RecoveryIntegrationTest {
             (field.get(activity) as MediaActions).handle(MethodCall(method,args),reply)
         };return reply
     }
-    private fun confirm(approve:Boolean) {
-        val button=device.wait(Until.findObject(By.res("android",if(approve) "button1" else "button2")),15000)
-        assertNotNull("Expected Android system confirmation dialog",button);button!!.click()
+    private fun confirm(approve:Boolean,reply:Reply) {
+        val words=if(approve) "(?i)^(move to trash|allow|restore)$" else "(?i)^(cancel|don't allow|don’t allow)$"
+        val button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile(words))),20000)
+        if(button==null) {
+            val dump=ByteArrayOutputStream();device.dumpWindowHierarchy(dump)
+            fail("Expected Android system confirmation. Native=${reply.error}; UI=${dump.toString("UTF-8").take(8000)}")
+        }
+        button!!.click()
     }
     private fun trashed(id:String):Boolean {
         val args=Bundle().apply {putInt(MediaStore.QUERY_ARG_MATCH_TRASHED,MediaStore.MATCH_INCLUDE)}
@@ -98,13 +103,13 @@ class RecoveryIntegrationTest {
         ActivityScenario.launch(MainActivity::class.java).use {scenario ->
             val a=snapshot(scenario,keep);val b=snapshot(scenario,copy)
             val request=invoke(scenario,"trash",mapOf("items" to listOf(b),"keep" to a,"digest" to digest,"exact" to true))
-            confirm(true);request.await();assertNull(request.error)
+            confirm(true,request);request.await();assertNull(request.error)
             assertFalse(trashed(keep));assertTrue(trashed(copy))
             scenario.recreate()
             val journal=invoke(scenario,"journal",emptyMap());journal.await();assertNull(journal.error)
             @Suppress("UNCHECKED_CAST") val rows=journal.value as List<Map<String,Any?>>
             assertEquals("trashed",rows.first {it["id"]==copy}["state"])
-            val restore=invoke(scenario,"restore",mapOf("id" to copy));confirm(true);restore.await();assertNull(restore.error)
+            val restore=invoke(scenario,"restore",mapOf("id" to copy));confirm(true,restore);restore.await();assertNull(restore.error)
             assertFalse(trashed(copy))
             resolver.openInputStream(Uri.parse(copy))!!.use {assertArrayEquals(data,it.readBytes())}
             resolver.openInputStream(Uri.parse(keep))!!.use {assertArrayEquals(data,it.readBytes())}
@@ -115,7 +120,7 @@ class RecoveryIntegrationTest {
         ActivityScenario.launch(MainActivity::class.java).use {scenario ->
             val item=snapshot(scenario,id)
             val request=invoke(scenario,"trash",mapOf("items" to listOf(item),"exact" to false))
-            confirm(false);request.await();assertTrue(request.error!!.startsWith("cancelled"));assertFalse(trashed(id))
+            confirm(false,request);request.await();assertTrue(request.error!!.startsWith("cancelled"));assertFalse(trashed(id))
             val journal=invoke(scenario,"journal",emptyMap());journal.await()
             @Suppress("UNCHECKED_CAST") val rows=journal.value as List<Map<String,Any?>>
             assertEquals("active",rows.first {it["id"]==id}["state"])

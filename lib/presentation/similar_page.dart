@@ -8,8 +8,13 @@ import 'review_page.dart';
 
 class SimilarPage extends StatefulWidget {
   final List<Entry> photos;
-  final bool demo;
-  const SimilarPage({super.key, required this.photos, required this.demo});
+  final bool demo, advanced;
+  const SimilarPage({
+    super.key,
+    required this.photos,
+    required this.demo,
+    this.advanced = false,
+  });
   @override
   State<SimilarPage> createState() => _SimilarPageState();
 }
@@ -91,7 +96,7 @@ class _SimilarPageState extends State<SimilarPage> {
         children: [
           const Text(
             'Sugestões por padrões de imagem e cores. Não são duplicatas comprovadas. '
-                'Imagens com texto detectado, predominância de papel claro e sinais de documentos/capturas ficam fora dos grupos. '
+            'Imagens com texto detectado, predominância de papel claro e sinais de documentos/capturas ficam fora dos grupos. '
             'Texto pequeno, desfocado ou manuscrito pode passar despercebido. Confira todas as fotos em tamanho completo.',
           ),
           const SizedBox(height: 16),
@@ -128,6 +133,7 @@ class _SimilarPageState extends State<SimilarPage> {
                               title: 'Comparar fotos semelhantes',
                               entries: g,
                               demo: widget.demo,
+                              advanced: widget.advanced,
                               requireKeeper: true,
                               explanation: 'Semelhança visual não garante o mesmo conteúdo. Escolha qual manter; confira detalhes, pessoas e documentos.',
                             ),

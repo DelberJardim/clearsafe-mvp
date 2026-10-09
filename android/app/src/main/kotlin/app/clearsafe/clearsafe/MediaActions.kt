@@ -96,6 +96,7 @@ internal class MediaActions(
         if(Build.VERSION.SDK_INT<30) { result.error("unsupported","Trash requires Android 11",null); return }
         busy=true;cancelled=false
         worker.execute {
+            var phase="selection"
             try {
                 when(call.method) {
                     "journal" -> {
@@ -114,7 +115,9 @@ internal class MediaActions(
                         val exact=call.argument<Boolean>("exact") ?: false
                         TrashPolicy.validate(items.map { it["id"] as String },keep?.get("id") as String?,digest,exact)
                         val uris=items.map { uri(it["id"] as String) }
+                        phase="metadata"
                         items.forEach(::stable); keep?.let { uri(it["id"] as String);stable(it) }
+                        phase="content"
                         if(exact) check(hash(uri(keep!!["id"] as String),(keep["size"] as Number).toLong())==digest)
                         val hashes=items.mapIndexed { i,item ->
                             val value=hash(uris[i],(item["size"] as Number).toLong())
@@ -125,6 +128,7 @@ internal class MediaActions(
                         }
                         items.forEach(::stable); keep?.let(::stable)
                         check(!cancelled)
+                        phase="journal"
                         val rows=records()
                         // Replace an older record for the same ID only after a fully verified new request.
                         val merged=JSONArray()
@@ -132,7 +136,7 @@ internal class MediaActions(
                         items.forEachIndexed { i,item -> merged.put(JSONObject().put("id",item["id"]).put("name",item["name"])
                             .put("size",item["size"]).put("hash",hashes[i]).put("time",System.currentTimeMillis()).put("request","trash_requested")) }
                         save(merged)
-                        launch(uris,true,result)
+                        phase="system_request";launch(uris,true,result)
                     }
                     "restore" -> {
                         val id=call.argument<String>("id") ?: error("No ID")
@@ -148,9 +152,10 @@ internal class MediaActions(
                     }
                     else -> error("Unsupported action")
                 }
-            } catch(_:Exception) {
+            } catch(e:Exception) {
                 activity.runOnUiThread { busy=false;result.error("action_blocked",
-                    "Não foi possível validar o conteúdo ou acessar a lixeira. Analise novamente; consulte a galeria para recuperação.",null) }
+                    "Não foi possível validar o conteúdo ou acessar a lixeira. Analise novamente; consulte a galeria para recuperação.",
+                    mapOf("phase" to phase,"cause" to e.javaClass.simpleName)) }
             }
         }
     }

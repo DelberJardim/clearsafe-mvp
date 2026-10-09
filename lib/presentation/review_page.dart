@@ -102,7 +102,7 @@ Future<void> inspectMedia(BuildContext context, Entry e, bool demo) async {
 class ReviewPage extends StatefulWidget {
   final String title, explanation;
   final List<Entry> entries;
-  final bool demo, requireKeeper;
+  final bool demo, requireKeeper, advanced;
   final String? digest;
   const ReviewPage({
     super.key,
@@ -110,6 +110,7 @@ class ReviewPage extends StatefulWidget {
     required this.entries,
     required this.demo,
     this.requireKeeper = false,
+    this.advanced = false,
     this.digest,
     required this.explanation,
   });
@@ -239,6 +240,8 @@ class _ReviewPageState extends State<ReviewPage> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(widget.explanation),
+            if (widget.advanced && widget.digest != null)
+              SelectableText('SHA-256 confirmado: ${widget.digest}'),
             if (widget.demo)
               const Text('SIMULAÇÃO: nenhum arquivo real será alterado.'),
             if (widget.requireKeeper)
@@ -292,8 +295,12 @@ class _ReviewPageState extends State<ReviewPage> {
                       title: const Text('Selecionar para lixeira'),
                       onChanged:
                           busy ||
-                            (!widget.demo && (!e.id.startsWith('content://media/external/file/') ||
-                              (e.kind != Kind.photo && e.kind != Kind.video))) ||
+                              (!widget.demo &&
+                                  (!e.id.startsWith(
+                                        'content://media/external/file/',
+                                      ) ||
+                                      (e.kind != Kind.photo &&
+                                          e.kind != Kind.video))) ||
                               e.id == keeper ||
                               (widget.requireKeeper && keeper == null) ||
                               (!selected.contains(e.id) &&
@@ -305,8 +312,18 @@ class _ReviewPageState extends State<ReviewPage> {
                                   : selected.remove(e.id);
                             }),
                     ),
-                    if (!widget.demo && !e.id.startsWith('content://media/external/file/'))
-                      const Text('Este provedor permite apenas análise nesta versão.'),
+                    if (widget.advanced)
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: SelectableText(
+                          'ID: ${e.id}\nVersão analisada: ${e.revision}',
+                        ),
+                      ),
+                    if (!widget.demo &&
+                        !e.id.startsWith('content://media/external/file/'))
+                      const Text(
+                        'Este provedor permite apenas análise nesta versão.',
+                      ),
                   ],
                 ),
               ),
