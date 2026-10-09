@@ -81,5 +81,5 @@ internal class MediaVisuals(private val activity: Activity, private val known: (
             } catch(_:Exception) { activity.runOnUiThread { result.error("preview_failed","Prévia ou análise visual indisponível",null) } }
         }
     }
-    fun close() {worker.shutdown()}
+    fun close() {worker.shutdownNow()}
 }

@@ -12,6 +12,10 @@ expected={'android.permission.READ_EXTERNAL_STORAGE','android.permission.READ_ME
           'android.permission.READ_MEDIA_VIDEO','android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
           'android.permission.READ_CONTACTS','android.permission.ACCESS_NETWORK_STATE'}
 assert permissions==expected, f'Unexpected Android permission: {permissions ^ expected}'
+assert manifest.find('application').attrib['{http://schemas.android.com/apk/res/android}allowBackup']=='false'
+assert any(e.attrib.get('{http://schemas.android.com/apk/res/android}name')=='android.permission.INTERNET'
+           and e.attrib.get('{http://schemas.android.com/tools}node')=='remove'
+           for e in manifest.findall('uses-permission'))
 kt=(root/'android/app/src/main/kotlin/app/clearsafe/clearsafe/MainActivity.kt').read_text(encoding='utf-8')
 swift=(root/'ios/Runner/AppDelegate.swift').read_text(encoding='utf-8')
 native=list((root/'android/app/src/main/kotlin').rglob('*.kt'))

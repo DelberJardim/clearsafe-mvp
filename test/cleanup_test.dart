@@ -36,6 +36,7 @@ void main() {
       expect(signature('a', protected: null).usable, isFalse);
       expect(signature('a', folder: 'Pictures/Screenshots').usable, isFalse);
       expect(signature('a', bits: 'bad').usable, isFalse);
+    expect(signature('a', bits: '0' * 64).usable, isFalse);
       expect(signature('a', colors: [1]).usable, isFalse);
     },
   );

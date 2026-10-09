@@ -159,6 +159,7 @@ internal class MediaActions(
         val request=MediaStore.createTrashRequest(activity.contentResolver,uris,trash)
         activity.runOnUiThread {
             try {
+                check(!cancelled && !activity.isFinishing && !activity.isDestroyed)
                 pending=result
                 activity.startIntentSenderForResult(request.intentSender,103,null,0,0,0)
             } catch(_:Exception) {pending=null;busy=false;result.error("unavailable","System trash unavailable",null)}
@@ -169,5 +170,5 @@ internal class MediaActions(
         if(code==Activity.RESULT_OK) result?.success(null)
         else result?.error("cancelled","Solicitação cancelada no Android. Confira o histórico para o estado atual.",null)
     }
-    fun close() { worker.shutdown() }
+    fun close() {cancelled=true;worker.shutdownNow()}
 }

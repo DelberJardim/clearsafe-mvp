@@ -46,8 +46,13 @@ class RecoveryIntegrationTest {
     private fun shell(command:String):String = ParcelFileDescriptor.AutoCloseInputStream(
         instrumentation.uiAutomation.executeShellCommand(command)).bufferedReader().use {it.readText()}
     private fun foreignFixture(data:ByteArray):String {
-        val output=shell("content insert --uri content://media/external/images/media --bind _display_name:s:ClearSafeTest_${UUID.randomUUID()}.jpg --bind mime_type:s:image/jpeg --bind relative_path:s:Pictures/ClearSafeTests/")
-        val image=Regex("content://media/[^\\s]+").find(output)?.value ?: error(output)
+        val name="ClearSafeTest_${UUID.randomUUID()}.jpg"
+        shell("content insert --uri content://media/external/images/media --bind _display_name:s:$name --bind mime_type:s:image/jpeg --bind relative_path:s:Pictures/ClearSafeTests/")
+        val rowId=resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",arrayOf(name),null)!!.use {c ->
+                check(c.moveToFirst()) { "Shell fixture not inserted" };c.getLong(0)
+            }
+        val image="content://media/external/images/media/$rowId"
         val streams=instrumentation.uiAutomation.executeShellCommandRw("content write --uri $image")
         ParcelFileDescriptor.AutoCloseOutputStream(streams[1]).use {it.write(data)}
         ParcelFileDescriptor.AutoCloseInputStream(streams[0]).bufferedReader().use {it.readText()}
@@ -117,13 +122,15 @@ class RecoveryIntegrationTest {
         }
     }
     @Test fun changedSnapshotAndDifferentContentFailBeforeSystemPrompt() {
-        val id=foreignFixture(bytes());val other=foreignFixture(byteArrayOf(1,2,3))
+        val data=bytes();val differentBytes=data.clone();differentBytes[differentBytes.lastIndex]=(differentBytes.last().toInt() xor 1).toByte()
+        val id=foreignFixture(data);val other=foreignFixture(differentBytes)
+        val digest=MessageDigest.getInstance("SHA-256").digest(data).joinToString("") {"%02x".format(it)}
         ActivityScenario.launch(MainActivity::class.java).use {scenario ->
             val item=snapshot(scenario,id)
             val stale=invoke(scenario,"trash",mapOf("items" to listOf(item+mapOf("revision" to "stale"))))
             stale.await();assertTrue(stale.error!!.startsWith("action_blocked"));assertFalse(trashed(id))
             val different=invoke(scenario,"trash",mapOf("items" to listOf(snapshot(scenario,other)),
-                "keep" to item,"exact" to true,"digest" to "a".repeat(64)))
+                "keep" to item,"exact" to true,"digest" to digest))
             different.await();assertTrue(different.error!!.startsWith("action_blocked"));assertFalse(trashed(id));assertFalse(trashed(other))
         }
     }
