@@ -42,8 +42,9 @@ cd android
 ./gradlew :app:testDebugUnitTest
 ```
 
-CI inclui Android15 emulado com mídia artificial estrangeira, confirmação/
-cancelamento, cópia preservada e recuperação após recriação da tela.
+CI inclui Android 13, 15 e 16 emulados com mídia artificial estrangeira,
+confirmação/cancelamento, cópia preservada, vídeo, OCR de documento e recuperação
+após recriação da tela. Resultados efetivamente aprovados em VALIDATION.md.
 Build otimizado de teste exige CLEARSAFE_PREVIEW_SIGNING=1 explícito antes de
 flutter build apk --release; usa a mesma chave de teste da0.1.
 Assinatura de produção precisa de configuração própria. SDKs, keystores e

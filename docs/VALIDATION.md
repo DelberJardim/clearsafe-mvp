@@ -1,11 +1,38 @@
 # Validação — versão 0.2 em 09/10/2026
 
-Verificado nesta evolução: 18 testes Flutter aprovados, análise estática sem
-problemas, build Android debug aprovado. Novos testes cobrem seleção/keeper,
-consentimento, requests exatos/manuais e proteção/grupos visuais.
-O pipeline acrescenta 5 testes de política e 4 testes instrumentados Android15.
-Os resultados de integração e do APK otimizado serão registrados após execução.
-Não há Android físico conectado; virtualização local desativada, integração via CI.
+## Resultados da 0.2
+
+- 19 testes Flutter e 12 testes do núcleo Dart aprovados; análise estática sem problemas.
+- 5 testes nativos da política de seleção aprovados.
+- APK otimizado e APK debug compilados. O APK distribuído tem 82.035.743 bytes.
+- Assinatura do APK conferida e idêntica à da versão 0.1; permite atualizar sem
+  desinstalar. É uma assinatura de teste, não uma chave de produção.
+- Manifesto final conferido: sem INTERNET, permissões de escrita, acesso amplo ao
+  armazenamento ou permissão para alterar mídia sem confirmação. ACCESS_NETWORK_STATE
+  permite à biblioteca local consultar conectividade, sem dar acesso à internet.
+- Verificação de segurança aprovada: scanner separado das ações; nenhuma chamada
+  nativa de exclusão definitiva, gravação ou atualização de mídia no código do app.
+- Build iOS sem assinatura aprovado no macOS do pipeline; iOS permanece somente leitura.
+
+Os testes instrumentados usam somente imagens e um pequeno vídeo MP4 artificiais,
+criados pelo usuário shell do emulador. Eles verificam conteúdo estrangeiro ao app:
+cópia preservada, lixeira e restauração byte a byte, histórico após recriação da
+tela, cancelamento sem alteração, bloqueio de conteúdo diferente/revisão obsoleta,
+miniatura real e OCR local de documento.
+
+[Execução aprovada da matriz Android 13/15/16](https://github.com/DelberJardim/clearsafe-mvp/actions/runs/37995578353):
+os 5 testes instrumentados passaram em cada uma das 3 versões, totalizando 15
+execuções aprovadas. A preparação espera até 20 segundos pela visibilidade da
+mídia artificial em provedores recém-iniciados, sem repetir inserção nem ampliar
+permissões. O mesmo pipeline aprovou testes Dart/Flutter, política nativa,
+verificação estática, build Android e build iOS sem assinatura.
+
+Não há Android físico conectado. A virtualização local está desativada; os testes
+instrumentados executam no CI com KVM. S23 Ultra, Note 10 Lite e S25 FE ainda
+precisam de verificação no aparelho: galeria Samsung, permissões limitadas,
+expiração real da lixeira, pouco espaço e biblioteca grande não estão certificados.
+O Android pode continuar contabilizando arquivos na lixeira até a expiração;
+o app não promete liberação imediata nem recuperação após esse prazo.
 
 ## Histórico — versão 0.1 (não descreve as capacidades da 0.2)
 
