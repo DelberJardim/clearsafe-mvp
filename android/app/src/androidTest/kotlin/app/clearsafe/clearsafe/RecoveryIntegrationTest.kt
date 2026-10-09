@@ -45,14 +45,18 @@ class RecoveryIntegrationTest {
     }
     private fun shell(command:String):String = ParcelFileDescriptor.AutoCloseInputStream(
         instrumentation.uiAutomation.executeShellCommand(command)).bufferedReader().use {it.readText()}
-    private fun foreignFixture(data:ByteArray):String {
-        val name="ClearSafeTest_${UUID.randomUUID()}.jpg"
-        shell("content insert --uri content://media/external/images/media --bind _display_name:s:$name --bind mime_type:s:image/jpeg --bind relative_path:s:Pictures/ClearSafeTests/")
-        val rowId=resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,arrayOf(MediaStore.MediaColumns._ID),
+    private fun foreignFixture(data:ByteArray,video:Boolean=false):String {
+        val name="WA0000_ClearSafeTest_${UUID.randomUUID()}.${if(video) "mp4" else "jpg"}"
+        val table=if(video) "video" else "images"
+        val mime=if(video) "video/mp4" else "image/jpeg"
+        val folder=if(video) "Movies" else "Pictures"
+        val collection=Uri.parse("content://media/external/$table/media")
+        shell("content insert --uri $collection --bind _display_name:s:$name --bind mime_type:s:$mime --bind relative_path:s:$folder/ClearSafeTests/")
+        val rowId=resolver.query(collection,arrayOf(MediaStore.MediaColumns._ID),
             "${MediaStore.MediaColumns.DISPLAY_NAME} = ?",arrayOf(name),null)!!.use {c ->
                 check(c.moveToFirst()) { "Shell fixture not inserted" };c.getLong(0)
             }
-        val image="content://media/external/images/media/$rowId"
+        val image="$collection/$rowId"
         val streams=instrumentation.uiAutomation.executeShellCommandRw("content write --uri $image")
         ParcelFileDescriptor.AutoCloseOutputStream(streams[1]).use {it.write(data)}
         ParcelFileDescriptor.AutoCloseInputStream(streams[0]).bufferedReader().use {it.readText()}
@@ -124,6 +128,18 @@ class RecoveryIntegrationTest {
             val journal=invoke(scenario,"journal",emptyMap());journal.await()
             @Suppress("UNCHECKED_CAST") val rows=journal.value as List<Map<String,Any?>>
             assertEquals("active",rows.first {it["id"]==id}["state"])
+        }
+    }
+    @Test fun videoUsesSystemTrashAndRestoresOriginalBytes() {
+        val data=instrumentation.context.assets.open("tiny-video.mp4").use {it.readBytes()}
+        val id=foreignFixture(data,video=true)
+        ActivityScenario.launch(MainActivity::class.java).use {scenario ->
+            val item=snapshot(scenario,id);assertEquals("video",item["kind"])
+            val request=invoke(scenario,"trash",mapOf("items" to listOf(item),"exact" to false))
+            confirm(true,request);request.await();assertNull(request.error);assertTrue(trashed(id))
+            val restore=invoke(scenario,"restore",mapOf("id" to id))
+            confirm(true,restore);restore.await();assertNull(restore.error);assertFalse(trashed(id))
+            resolver.openInputStream(Uri.parse(id))!!.use {assertArrayEquals(data,it.readBytes())}
         }
     }
     @Test fun changedSnapshotAndDifferentContentFailBeforeSystemPrompt() {
