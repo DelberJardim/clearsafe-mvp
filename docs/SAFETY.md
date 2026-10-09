@@ -33,7 +33,8 @@ liberar espaço imediatamente.
 ## Semelhança e documentos
 
 Modelo OCR Latin embutido e local. Falha OCR/miniatura impede sugestão.
-Texto detectado, nomes/pastas de documentos/capturas e padrões quase uniformes
+Texto detectado, predominância de papel claro (mais da metade da miniatura),
+nomes/pastas de documentos/capturas e padrões quase uniformes
 excluem grupos. Letras pequenas, manuscritas, assinaturas e desfoque podem
 passar despercebidos: revisão visual continua obrigatória.
 

@@ -91,7 +91,7 @@ class _SimilarPageState extends State<SimilarPage> {
         children: [
           const Text(
             'Sugestões por padrões de imagem e cores. Não são duplicatas comprovadas. '
-            'Imagens com texto detectado e sinais de documentos/capturas ficam fora dos grupos. '
+                'Imagens com texto detectado, predominância de papel claro e sinais de documentos/capturas ficam fora dos grupos. '
             'Texto pequeno, desfocado ou manuscrito pode passar despercebido. Confira todas as fotos em tamanho completo.',
           ),
           const SizedBox(height: 16),

@@ -155,6 +155,7 @@ class RecoveryIntegrationTest {
             assertNotNull(android.graphics.BitmapFactory.decodeByteArray(preview,0,preview.size))
             @Suppress("UNCHECKED_CAST") val value=visual("signature").value as Map<String,Any?>
             assertEquals(true,value["protected"])
+            assertEquals(true,value["textDetected"])
             assertEquals(64,(value["bits"] as String).length)
         }
     }

@@ -1,4 +1,5 @@
 # Miscellaneous
+.kotlin/
 *.class
 *.log
 *.pyc

@@ -60,7 +60,7 @@ internal class MediaVisuals(private val activity: Activity, private val known: (
                             val text=try { Tasks.await(recognizer.process(InputImage.fromBitmap(bitmap,0)),30,TimeUnit.SECONDS).text }
                                 finally {recognizer.close()}
                             val small=Bitmap.createScaledBitmap(bitmap,9,8,true)
-                            val bits=StringBuilder();val histogram=DoubleArray(12)
+                            val bits=StringBuilder();val histogram=DoubleArray(12);var paperPixels=0
                             try {
                                 fun gray(color:Int)=(Color.red(color)*299+Color.green(color)*587+Color.blue(color)*114)/1000
                                 for(y in 0..7) for(x in 0..7) bits.append(if(gray(small.getPixel(x,y))>gray(small.getPixel(x+1,y))) '1' else '0')
@@ -69,10 +69,13 @@ internal class MediaVisuals(private val activity: Activity, private val known: (
                                 try { for(y in 0..31) for(x in 0..31) {
                                     val color=colorGrid.getPixel(x,y)
                                     histogram[Color.red(color)/64]++;histogram[4+Color.green(color)/64]++;histogram[8+Color.blue(color)/64]++
+                                    val channels=listOf(Color.red(color),Color.green(color),Color.blue(color))
+                                    if(channels.min()>=200 && channels.max()-channels.min()<=35) paperPixels++
                                 } } finally {if(colorGrid!==bitmap && colorGrid!==small) colorGrid.recycle()}
                             } finally {if(small!==bitmap) small.recycle()}
                             mapOf("bits" to bits.toString(),"colors" to histogram.map {it/3072},
-                                "aspect" to bitmap.width.toDouble()/bitmap.height,"protected" to text.isNotBlank())
+                                "aspect" to bitmap.width.toDouble()/bitmap.height,
+                                "protected" to (text.isNotBlank() || paperPixels>512),"textDetected" to text.isNotBlank())
                         } finally {bitmap.recycle()}
                     }
                     else -> error("Unsupported preview")
