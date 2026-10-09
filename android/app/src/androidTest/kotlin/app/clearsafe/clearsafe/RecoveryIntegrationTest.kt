@@ -87,7 +87,7 @@ class RecoveryIntegrationTest {
         };return reply
     }
     private fun confirm(approve:Boolean,reply:Reply) {
-        val words=if(approve) "(?i)^(move to trash|allow|restore)$" else "(?i)^(cancel|don't allow|don’t allow)$"
+        val words=if(approve) "(?i)^(move to trash|allow|restore)$" else "(?i)^(cancel|deny|don't allow|don’t allow)$"
         val button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile(words))),20000)
         if(button==null) {
             val dump=ByteArrayOutputStream();device.dumpWindowHierarchy(dump)
