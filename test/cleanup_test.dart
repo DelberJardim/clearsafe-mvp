@@ -1,5 +1,6 @@
 import 'package:clearsafe/actions/trash_service.dart';
 import 'package:clearsafe/analysis/similarity.dart';
+import 'package:clearsafe/data/visual_source.dart';
 import 'package:clearsafe/presentation/review_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +30,29 @@ VisualSignature signature(
 });
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'reused preview loads the new item when pagination changes identity',
+    (tester) async {
+      final ids = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(VisualSource.channel, (c) async {
+            ids.add(c.arguments['id'] as String);
+            return null;
+          });
+      await tester.pumpWidget(
+        MaterialApp(home: MediaPreview(entry('a'), demo: false)),
+      );
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(home: MediaPreview(entry('b'), demo: false)),
+      );
+      await tester.pumpAndSettle();
+      expect(ids, ['a', 'b']);
+      expect(tester.takeException(), isNull);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(VisualSource.channel, null);
+    },
+  );
   test(
     'unknown OCR, detected text, screenshots, missing data are protected',
     () {
@@ -36,7 +60,7 @@ void main() {
       expect(signature('a', protected: null).usable, isFalse);
       expect(signature('a', folder: 'Pictures/Screenshots').usable, isFalse);
       expect(signature('a', bits: 'bad').usable, isFalse);
-    expect(signature('a', bits: '0' * 64).usable, isFalse);
+      expect(signature('a', bits: '0' * 64).usable, isFalse);
       expect(signature('a', colors: [1]).usable, isFalse);
     },
   );

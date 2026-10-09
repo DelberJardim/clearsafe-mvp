@@ -16,13 +16,34 @@ class MediaPreview extends StatefulWidget {
 }
 
 class _MediaPreviewState extends State<MediaPreview> {
-  late final Future<Uint8List?> bytes = widget.demo
-      ? Future.value(null)
-      : VisualSource().preview(widget.entry.id).catchError((_) => null);
+  late Future<Uint8List?> bytes;
+  void load() {
+    bytes = widget.demo
+        ? Future.value(null)
+        : VisualSource().preview(widget.entry.id).catchError((_) => null);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void didUpdateWidget(covariant MediaPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.id != widget.entry.id ||
+        oldWidget.entry.revision != widget.entry.revision ||
+        oldWidget.demo != widget.demo) {
+      load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<Uint8List?>(
     future: bytes,
-    builder: (_, value) => value.data == null
+    builder: (_, value) =>
+        value.connectionState != ConnectionState.done || value.data == null
         ? SizedBox(
             height: 100,
             child: Icon(
