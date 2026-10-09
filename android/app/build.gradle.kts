@@ -27,11 +27,16 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
             // Production signing must be configured explicitly before distribution.
+            // Explicit local preview build uses the same test signature as 0.1.
+            if (System.getenv("CLEARSAFE_PREVIEW_SIGNING") == "1") {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 }
@@ -44,4 +49,14 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Bundled Latin OCR model; text recognition needs no cloud upload or model download.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
 }

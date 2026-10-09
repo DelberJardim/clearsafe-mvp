@@ -1,4 +1,4 @@
-name: Verify read-only MVP
+name: Verify ClearSafe safety and recovery
 on: [push, pull_request]
 jobs:
   android:
@@ -23,6 +23,24 @@ jobs:
         working-directory: packages/safe_scanner
       - run: python3 tool/check_safety.py
       - run: flutter build apk --debug
+      - run: ./gradlew :app:testDebugUnitTest :app:assembleDebugAndroidTest
+        working-directory: android
+      - name: Enable KVM for Android recovery tests
+        run: sudo chmod 666 /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: cd android && ./gradlew :app:connectedDebugAndroidTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-reports
+          path: build/app/reports
+
   ios:
     runs-on: macos-latest
     steps:

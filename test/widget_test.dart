@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Home exposes seven functions and read-only demonstration', (
+  testWidgets('Home exposes functions and real library by default', (
     tester,
   ) async {
     await tester.pumpWidget(const ClearSafeApp());
     expect(find.text('ClearSafe'), findsOneWidget);
-    expect(find.textContaining('Somente leitura'), findsOneWidget);
+    expect(find.textContaining('Limpeza com revisão'), findsOneWidget);
     expect(find.text('Biblioteca de demonstração'), findsOneWidget);
     for (final label in [
       'Analisar armazenamento',
@@ -23,7 +23,7 @@ void main() {
     }
     expect(
       tester.widget<SwitchListTile>(find.byType(SwitchListTile).first).value,
-      isTrue,
+      isFalse,
     );
     expect(find.text('Excluir'), findsNothing);
   });
@@ -31,6 +31,8 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const ClearSafeApp());
+    await tester.tap(find.byType(SwitchListTile).first);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Analisar armazenamento'));
     await tester.runAsync(() async {
       await tester.tap(find.text('Analisar armazenamento'));

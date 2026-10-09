@@ -1,10 +1,15 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- Bundled OCR runs offline; remove networking permissions from dependency manifests. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <!-- OCR dependency scheduling inspects connectivity; INTERNET remains unavailable. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <application
+        android:allowBackup="false"
         android:label="ClearSafe"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

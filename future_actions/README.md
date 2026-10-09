@@ -1,6 +1,8 @@
 # Área reservada — fora de lib/ e do grafo de dependências
 
-Não contém código executável. O MVP não possui operações destrutivas.
+Não contém código executável. A lixeira do Android da versão 0.2 está no módulo
+separado lib/actions, com confirmação do sistema e registro persistente.
+Exclusão definitiva, compressão e alterações de contatos não existem no app.
 
 Futuro módulo independente: plano imutável de operação, confirmação explícita,
 revalidação de identidade/conteúdo, backup verificado, transação com journal,

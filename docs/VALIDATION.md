@@ -1,4 +1,13 @@
-# Validação — 08/10/2026
+# Validação — versão 0.2 em 09/10/2026
+
+Verificado nesta evolução: 18 testes Flutter aprovados, análise estática sem
+problemas, build Android debug aprovado. Novos testes cobrem seleção/keeper,
+consentimento, requests exatos/manuais e proteção/grupos visuais.
+O pipeline acrescenta 5 testes de política e 4 testes instrumentados Android15.
+Os resultados de integração e do APK otimizado serão registrados após execução.
+Não há Android físico conectado; virtualização local desativada, integração via CI.
+
+## Histórico — versão 0.1 (não descreve as capacidades da 0.2)
 
 Ambiente: Windows; Flutter stable 3.47.7, Dart 3.13.5. SDK Flutter instalado em
 área de trabalho para executar a verificação; não integra o ZIP do projeto.

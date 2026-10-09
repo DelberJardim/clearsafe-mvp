@@ -3,6 +3,9 @@ import 'package:safe_scanner/safe_scanner.dart';
 
 import '../data/demo_source.dart';
 import '../data/native_source.dart';
+import 'review_page.dart';
+import 'recovery_page.dart';
+import 'similar_page.dart';
 
 const accessLabels = {
   Access.full: 'acesso completo',
@@ -31,7 +34,7 @@ class _HomeState extends State<Home> {
   ScanReport? report;
   List<ContactRecord> contacts = [];
   List<ContactFinding> contactFindings = [];
-  bool demo = true, advanced = false, busy = false;
+  bool demo = false, advanced = false, busy = false;
   int minimumMb = 100, age = 0, done = 0, total = 0;
   Set<Kind> kinds = Kind.values.toSet();
   Set<String> ignored = {};
@@ -170,48 +173,86 @@ class _HomeState extends State<Home> {
   String bytes(int n) => n >= 1024 * 1024
       ? '${(n / 1024 / 1024).toStringAsFixed(1)} MB'
       : '${(n / 1024).toStringAsFixed(1)} KB';
-  Widget entry(Entry e, String why) => Card(
-    child: ListTile(
-      title: Text(e.name),
-      subtitle: Text('${bytes(e.size)} • ${kindLabels[e.kind]}'),
-      trailing: const Icon(Icons.info_outline),
-      onTap: () => page('Por que este item foi marcado?', [
-        Text(e.name, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
-        Text(why),
-        const SizedBox(height: 16),
-        Text('Pasta: ${e.folder.isEmpty ? 'Não informada' : e.folder}'),
-        Text('Data: ${e.modified?.toIso8601String() ?? 'Não disponível'}'),
-        if (advanced) ...[Text('ID: ${e.id}'), Text('Versão: ${e.revision}')],
-        const SizedBox(height: 20),
-        const Text('Nenhuma ação de alteração está disponível nesta versão.'),
-      ]),
-    ),
-  );
+  Future<void> review(
+    List<Entry> entries,
+    String title,
+    String explanation, {
+    bool keeper = false,
+    String? digest,
+  }) async {
+    final applied = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReviewPage(
+          title: title,
+          entries: entries,
+          demo: demo,
+          requireKeeper: keeper,
+          digest: digest,
+          explanation: explanation,
+        ),
+      ),
+    );
+    if (applied == true && mounted) {
+      log('trash_request_completed demo=$demo');
+      setState(() {
+        report = null;
+        status = demo
+            ? 'Limpeza simulada. Execute nova análise para recomeçar.'
+            : 'Solicitação concluída. Confira Lixeira e recuperação e faça nova análise para atualizar a biblioteca.';
+      });
+    }
+  }
+
   void showItems(String title, Kind? kind, {bool large = false}) {
     if (report == null) {
       setState(() => status = 'Execute Analisar armazenamento primeiro.');
       return;
     }
-    final list = (large ? report!.large : report!.entries)
-        .where((e) => kind == null || e.kind == kind)
-        .toList();
-    page(title, [
-      Text(
-        '${list.length} itens no relatório • ${demo ? 'dados simulados' : 'conteúdo autorizado'}',
-      ),
-      const SizedBox(height: 12),
-      if (list.isEmpty)
-        const Text('Nenhum item encontrado pelos critérios atuais.'),
-      ...list.map(
-        (e) => entry(
-          e,
-          large
-              ? 'Tamanho igual ou superior a $minimumMb MB; idade mínima $age dias; tipo incluído nos filtros.'
-              : 'Item de mídia acessível, classificado por tipo. Não foi avaliada semelhança visual.',
+    final list =
+        (large ? report!.large : report!.entries)
+            .where((e) => kind == null || e.kind == kind)
+            .toList()
+          ..sort((a, b) => b.size.compareTo(a.size));
+    if (kind == Kind.photo) {
+      page(title, [
+        FilledButton.icon(
+          icon: const Icon(Icons.compare),
+          label: const Text('Encontrar fotos semelhantes'),
+          onPressed: () async {
+            final changed = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SimilarPage(photos: list, demo: demo),
+              ),
+            );
+            if (changed == true && mounted) {
+              Navigator.pop(context);
+              setState(() {
+                report = null;
+                status = 'Biblioteca alterada. Confira a lixeira e faça nova análise.';
+              });
+            }
+          },
         ),
-      ),
-    ]);
+        TextButton(
+          onPressed: () => review(
+            list,
+            title,
+            'Fotos ordenadas por tamanho. Abra as prévias e escolha manualmente os itens.',
+          ),
+          child: const Text('Ver todas as fotos e selecionar'),
+        ),
+      ]);
+    } else {
+      review(
+        list,
+        title,
+        large
+            ? 'Itens pelos filtros de tipo, tamanho e idade, do maior para o menor. Confira o conteúdo antes de selecionar.'
+            : 'Vídeos do maior para o menor. Toque na prévia para consultar duração e reproduzir.',
+      );
+    }
   }
 
   void showDuplicates() {
@@ -219,33 +260,32 @@ class _HomeState extends State<Home> {
       setState(() => status = 'Execute Analisar armazenamento primeiro.');
       return;
     }
+    final groups = report!.duplicates;
     page('Duplicados exatos', [
       const Text(
-        'Confirmação por tamanho, SHA-256 e conteúdo. Estimativa de bytes redundantes; nenhum espaço foi liberado.',
+        'Tamanho, SHA-256 e comparação byte a byte confirmados. Escolha qual manter e marque as outras cópias.',
       ),
-      if (report!.duplicates.isEmpty)
-        const Padding(
-          padding: EdgeInsets.all(20),
-          child: Text('Nenhuma duplicata confirmada.'),
-        ),
-      ...report!.duplicates.map(
+      if (groups.isEmpty) const Text('Nenhuma duplicata confirmada.'),
+      ...groups.map(
         (g) => Card(
-          child: ExpansionTile(
+          child: ListTile(
             title: Text(
               '${g.entries.length} cópias • ${bytes(g.redundantBytes)} redundantes',
             ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(g.explanation),
-              ),
-              if (advanced)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SelectableText('SHA-256: ${g.digest}'),
-                ),
-              ...g.entries.map((e) => entry(e, g.explanation)),
-            ],
+            subtitle: const Text(
+              'Escolher cópia para manter e revisar lixeira',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () async {
+              await review(
+                g.entries,
+                'Escolher cópia preservada',
+                g.explanation,
+                keeper: true,
+                digest: g.digest,
+              );
+              if (report == null && mounted) Navigator.pop(context);
+            },
           ),
         ),
       ),
@@ -413,6 +453,16 @@ class _HomeState extends State<Home> {
         title: const Text('ClearSafe'),
         actions: [
           IconButton(
+            tooltip: 'Lixeira e recuperação',
+            icon: const Icon(Icons.restore),
+            onPressed: busy || demo
+                ? null
+                : () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RecoveryPage()),
+                  ),
+          ),
+          IconButton(
             tooltip: 'Logs e avisos',
             icon: const Icon(Icons.receipt_long),
             onPressed: () => page('Logs e avisos', [
@@ -431,7 +481,7 @@ class _HomeState extends State<Home> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'MVP 0.1 • Somente leitura • Nenhum arquivo ou contato é alterado',
+            'Versão 0.2 • Limpeza com revisão e lixeira do Android • Contatos somente leitura',
           ),
           const SizedBox(height: 20),
           Card(
@@ -539,7 +589,7 @@ class _HomeState extends State<Home> {
             ),
           const SizedBox(height: 20),
           const Text(
-            'Processamento local. Sem envio de conteúdo. Fotos semelhantes, compressão e lixeira ficam para versões futuras.',
+            'Análise local. Escolha manual, lixeira com prazo e recuperação no Android 11+. Compressão e alterações de contatos ficam para versões futuras.',
           ),
         ],
       ),

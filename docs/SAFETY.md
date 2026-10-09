@@ -1,58 +1,80 @@
-# Critérios de segurança e aceite
+# Segurança e critérios de aceite — 0.2
 
-## Invariantes do MVP
+## Invariantes
 
-- Zero exclusão, alteração, merge ou compressão dos dados do usuário.
-- Nenhuma permissão Android de escrita ou acesso total ao sistema de arquivos.
-- Somente leitura de fontes autorizadas; sem suposição de acesso completo.
-- Duplicata confirmada exige tamanho, SHA-256, bytes e versão estável.
-- Provedor sem versão confiável não recebe confirmação de duplicata.
-- Item alterado, ilegível, incompleto ou revogado produz aviso, não confirmação.
-- Cancelamento elimina grupos confirmados do relatório cancelado.
-- Nenhuma escolha automática de arquivo a conservar.
-- Correspondência de contatos é sugestão; nomes iguais não implicam duplicidade.
-- Logs não incluem conteúdo ou dados pessoais.
-- Código futuro de ações fica fora do grafo de compilação do MVP.
+- Scanner puro separado das ações. iOS e contatos permanecem somente leitura.
+- Única ação Android: MediaStore.createTrashRequest(true/false). Sem delete,
+  createDeleteRequest, update, escrita de originais ou esvaziamento.
+- Nada começa selecionado; keeper escolhido pelo usuário fica fora dos alvos.
+- Duplicata: tamanho, SHA256, bytes e versão estáveis. Repetir validação nativa
+  antes de solicitar lixeira, inclusive na cópia preservada.
+- Seleção manual de semelhantes/vídeos valida metadados e lê conteúdo completo
+  para registrar hash; não é tratada como prova de duplicidade.
+- Até100 alvos. ID repetido, provedor estranho, keeper nos alvos, falha de leitura
+  ou revogação bloqueiam todo o lote. SAF somente leitura.
+- Revisão, consentimento explícito e confirmação Android; validação cancelável.
 
-## Validação automatizada
+## Registro e recuperação
 
-Núcleo: nomes e tamanhos iguais com conteúdo diferente; colisão forçada de hash;
-blocos diferentes; falha/revogação; mudança de versão; cancelamento; filtros;
-3.000 cópias simuladas; sugestões conservadoras de contatos.
+SharedPreferences privado: URI, nome, tamanho, SHA256, momento/intenção.
+commit() síncrono precisa concluir ANTES de abrir diálogo Android. Registro é
+intenção, não prova do resultado. Histórico consulta IS_TRASHED/DATE_EXPIRES:
+ativo, na lixeira, invisível/ausente ou desconhecido, inclusive após reinício.
 
-Aplicativo: Home, indicação de demonstração/somente leitura; MethodChannel com
-permissão completa, limitada, negada, restrita e indisponível; leitura em blocos,
-fechamento de handles inclusive em erro; fonte nativa não expõe ações destrutivas.
+Restaurar exige registro, estado na lixeira, leitura acessível e hash igual,
+bloqueando ID reutilizado com conteúdo diferente. Sistema solicita confirmação.
+Se o Android negar acesso aos bytes na lixeira, bloqueia e orienta recuperar
+pela galeria. Fabricantes podem apresentar lixeira de forma diferente.
 
-## Matriz de aparelhos — exigência anterior à distribuição
+Desinstalar/limpar dados remove registro. Android controla prazo e pode apagar
+após expiração. Não há retenção indefinida, backup dos bytes ou garantia de
+liberar espaço imediatamente.
 
-| Plataforma | Cenários obrigatórios |
+## Semelhança e documentos
+
+Modelo OCR Latin embutido e local. Falha OCR/miniatura impede sugestão.
+Texto detectado, nomes/pastas de documentos/capturas e padrões quase uniformes
+excluem grupos. Letras pequenas, manuscritas, assinaturas e desfoque podem
+passar despercebidos: revisão visual continua obrigatória.
+
+dHash64 distância<=6, RGB L1<=0,12, proporção relativa<=5%.
+Todos os pares devem satisfazer limites; sem encadear A~B~C se A e C diferem.
+Até10 por grupo. Não entende significado, pessoas, importância ou qualidade.
+Nomes WA não classificam importância. Sugestão nunca autoriza remoção automática.
+
+## Privacidade e riscos residuais
+
+Manifesto remove INTERNET herdada das dependências; modelo não precisa de download.
+ACCESS_NETWORK_STATE permanece para o agendador da biblioteca, sem acesso à Internet.
+Backup Android do app desativado. Logs gerais
+não contêm bytes/OCR/contatos; registro privado contém metadados de recuperação.
+Sem all-files, MANAGE_MEDIA ou permissões de escrita.
+
+Metadados não são locks. Outro app/sincronização pode remover/alterar keeper
+DURANTE o diálogo após validação. Não há transação atômica protegendo todas as
+cópias. Não se promete risco zero; backup de material insubstituível é necessário.
+iOS mantém scratch<=512MiB, possível cache após interrupção e cancelamento
+atrasado do inventário. Recursos compostos/iCloud indisponível são omitidos.
+
+## Matriz de aceite antes de produção
+
+| Ambiente | Cenários |
 |---|---|
-| Android 7–12 | negar/permitir READ_EXTERNAL_STORAGE; revogar durante scanner |
-| Android 13 | permitir só fotos, só vídeos, ambos e nenhum |
-| Android 14+ | seleção parcial; alterar seleção; revogar no segundo plano |
-| Android | documento escolhido/cancelado; provedor remoto/offline; contatos negados |
-| iOS 15–17 | galeria completa/limitada/negada/restrita; mudar seleção |
-| iOS 18+ | contatos limitados e completos; confirmar alcance da lista |
-| iOS | original local/iCloud; Live Photo; recurso acima de 512 MiB; pouco espaço |
-| Ambas | biblioteca vazia; item alterado/removido externamente; fechar app; cancelamento |
+| Android7–9 | somente análise, sem lixeira |
+| Android10 | visual/semelhança, sem lixeira |
+| Android11–12 | permissões, cancelamento, restauração, expiração |
+| Android13 | só fotos/só vídeos/ambos/nenhum; revogação |
+| Android14–16 | acesso parcial, mídia estrangeira, reinício no diálogo |
+| Fabricantes/SD | lixeira e identidade em volumes removíveis |
+| Documentos | número/assinatura diferente, OCR falho, padrão uniforme |
+| Vídeos | arquivos WA grandes/longos, duração, visualizador ausente |
+| Recuperação | hashes externos, registro durável, ID reutilizado |
+| iOS15+ | permissões, contatos limitados, iCloud/LivePhoto/scratch |
 
-Confirmar separadamente que hashes de arquivos e base de contatos permanecem
-iguais antes/depois do teste; só o sandbox do app pode ganhar/remover cache próprio.
-Testar desempenho e memória com bibliotecas reais grandes e baixa memória.
-Snapshots byte a byte externos devem ser feitos sobre biblioteca de teste, nunca
-apenas sobre dados pessoais insubstituíveis.
+Usar biblioteca artificial, hashes antes/depois e testar baixo espaço/memória.
+Testes em emulador não substituem matriz de aparelhos. Guardas estáticas são
+barreiras de regressão, não prova formal.
 
-## Limites e riscos residuais
-
-Não há garantia absoluta de ausência de falhas. O mecanismo de prevenção é reduzir
-o MVP à leitura e eliminar as capacidades de alteração dos dados do usuário.
-Mudanças feitas por outro aplicativo ou pela sincronização não são controladas.
-Versões nativas não equivalem a locks ou snapshots; qualquer ação futura precisa
-conferir novamente conteúdo e identidade no momento da operação.
-
-O inventário iOS ainda não oferece cancelamento por item à UI; cancelar o scanner
-é observado depois do inventário ou entre blocos de leitura. Cache temporário iOS
-pode ficar após encerramento abrupto; fica no sandbox temporário, sem afetar originais.
-Esta versão é uma base de desenvolvimento; distribuição depende da matriz acima,
-builds nativos, revisão de permissões e política das lojas.
+Fontes: [MediaStore](https://developer.android.com/reference/android/provider/MediaStore),
+[prazo](https://developer.android.com/reference/android/provider/MediaStore.MediaColumns#DATE_EXPIRES),
+[OCR local e qualidade](https://developers.google.com/ml-kit/vision/text-recognition/v2/android).

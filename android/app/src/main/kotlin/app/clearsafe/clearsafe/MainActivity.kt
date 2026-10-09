@@ -16,11 +16,14 @@ import io.flutter.plugin.common.MethodChannel
 import java.io.InputStream
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 
 class MainActivity : FlutterActivity() {
     private val worker = Executors.newSingleThreadExecutor()
     private val handles = mutableMapOf<String, InputStream>()
-    private val known = mutableMapOf<String, Uri>()
+    private val known = ConcurrentHashMap<String, Uri>()
+    private lateinit var actions: MediaActions
+    private lateinit var visuals: MediaVisuals
     private val documents = mutableMapOf<String, Uri>()
     private var pending: MethodChannel.Result? = null
     private var pendingScope = ""
@@ -37,6 +40,10 @@ class MainActivity : FlutterActivity() {
     }
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
+        actions=MediaActions(this,{id -> known[id]},{id -> stat(id)})
+        visuals=MediaVisuals(this,{id -> known[id]})
+        MethodChannel(engine.dartExecutor.binaryMessenger,"clearsafe/recoverable_actions").setMethodCallHandler(actions::handle)
+        MethodChannel(engine.dartExecutor.binaryMessenger,"clearsafe/visuals").setMethodCallHandler(visuals::handle)
         MethodChannel(engine.dartExecutor.binaryMessenger, "clearsafe/read_only").setMethodCallHandler { call, result ->
             val scope = call.argument<String>("scope") ?: "media"
             when(call.method) {
@@ -95,6 +102,7 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Activity result compatibility")
     override fun onActivityResult(code:Int,resultCode:Int,data:Intent?) {
         super.onActivityResult(code,resultCode,data)
+        if(code==103) {actions.completed(resultCode);return}
         if(code==102) {
             if(resultCode==Activity.RESULT_OK && data!=null) {
                 val uris=mutableListOf<Uri>()
@@ -198,6 +206,8 @@ class MainActivity : FlutterActivity() {
         return out
     }
     override fun onDestroy() {
+        if(::actions.isInitialized) actions.close()
+        if(::visuals.isInitialized) visuals.close()
         worker.execute {handles.values.forEach {try {it.close()} catch(_:Exception) {}};handles.clear()}
         worker.shutdown();super.onDestroy()
     }
