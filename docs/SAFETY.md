@@ -17,6 +17,8 @@
 ## Registro e recuperação
 
 SharedPreferences privado: URI, nome, tamanho, SHA256, momento/intenção.
+O tipo é obtido da linha nativa e registrado; o pedido ao Android usa URI de
+Images/Video correspondente ao ID, pois a URI geral Files não é aceita para fotos.
 commit() síncrono precisa concluir ANTES de abrir diálogo Android. Registro é
 intenção, não prova do resultado. Histórico consulta IS_TRASHED/DATE_EXPIRES:
 ativo, na lixeira, invisível/ausente ou desconhecido, inclusive após reinício.

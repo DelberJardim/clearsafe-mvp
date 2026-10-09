@@ -31,6 +31,16 @@ internal class MediaActions(
         require(id.matches(Regex("content://media/external/file/[0-9]+")))
         return known(id) ?: throw IllegalStateException("Item not in current inventory")
     }
+    private fun actionUri(id: String, kind: String): Uri {
+        require(id.matches(Regex("content://media/external/file/[0-9]+")))
+        val collection=when(kind) {
+            "photo" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            "video" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            else -> error("Not supported media")
+        }
+        // System requests accept typed media URIs, not the general Files URI used by inventory.
+        return Uri.withAppendedPath(collection,Uri.parse(id).lastPathSegment!!)
+    }
     private fun stable(item: Map<String, Any?>) {
         val current = stat(item["id"] as String) ?: error("Missing item")
         check(current["size"] == (item["size"] as Number).toLong() &&
@@ -128,15 +138,16 @@ internal class MediaActions(
                         }
                         items.forEach(::stable); keep?.let(::stable)
                         check(!cancelled)
+                        val mediaKinds=items.map {stat(it["id"] as String)?.get("kind") as? String ?: error("Missing media type")}
                         phase="journal"
                         val rows=records()
                         // Replace an older record for the same ID only after a fully verified new request.
                         val merged=JSONArray()
                         for(i in 0 until rows.length()) if(rows.getJSONObject(i).getString("id") !in items.map {it["id"]}) merged.put(rows.getJSONObject(i))
                         items.forEachIndexed { i,item -> merged.put(JSONObject().put("id",item["id"]).put("name",item["name"])
-                            .put("size",item["size"]).put("hash",hashes[i]).put("time",System.currentTimeMillis()).put("request","trash_requested")) }
+                            .put("size",item["size"]).put("kind",mediaKinds[i]).put("hash",hashes[i]).put("time",System.currentTimeMillis()).put("request","trash_requested")) }
                         save(merged)
-                        phase="system_request";launch(uris,true,result)
+                        phase="system_request";launch(items.mapIndexed {i,item -> actionUri(item["id"] as String,mediaKinds[i])},true,result)
                     }
                     "restore" -> {
                         val id=call.argument<String>("id") ?: error("No ID")
@@ -148,7 +159,7 @@ internal class MediaActions(
                         // Prevent restoring a reused media ID with different content.
                         check(hash(Uri.parse(id),item.getLong("size"))==item.getString("hash")) { "Recovery content changed" }
                         item.put("request","restore_requested");save(rows)
-                        launch(listOf(Uri.parse(id)),false,result)
+                        phase="system_request";launch(listOf(actionUri(id,item.getString("kind"))),false,result)
                     }
                     else -> error("Unsupported action")
                 }
